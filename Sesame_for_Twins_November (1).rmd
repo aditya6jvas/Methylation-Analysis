@@ -1,0 +1,1089 @@
+---
+title: "ImmunoTwin fullblood methylation analysis"
+author: "Pablo Donner"
+date: "2023-11-15"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(root.dir = "J:/DII ALL6/Projects/Pablo/November")
+```
+
+```{r}
+# remove.packages("BiocManager")
+# remove.packages("ExperimentHub")
+# remove.packages("RPMM")
+# remove.packages("pals")
+# remove.packages("SummarizedExperiment")
+# remove.packages("minfi")
+# remove.packages("BiocParallel")
+# remove.packages("GenomicRanges")
+# remove.packages("sesame")
+# remove.packages("sesameData")
+# remove.packages("tibble")
+# remove.packages("tidyr")
+# remove.packages("gprofiler2")
+# remove.packages("ggrepel")
+# remove.packages("cowplot")
+# remove.packages("corrplot")
+# remove.packages("readxl")
+```
+
+#Packages
+```{r}
+##I recommend to uncomment this chunk as soon as all the packages are installed
+# install.packages("pkgbuild")
+# pkgbuild::check_build_tools()
+# install.packages("devtools")
+# require(devtools)
+# install.packages("BiocManager")
+# if (!require("BiocManager", quietly = TRUE))
+#     install.packages("BiocManager")
+# BiocManager::install(version = "3.18")
+# packageVersion("BiocManager")
+# BiocManager::install("sesame")
+# packageVersion("sesame")
+# BiocManager::install("sesameData")
+# packageVersion("sesameData")
+# BiocManager::install("ExperimentHub")
+# packageVersion("ExperimentHub")
+# BiocManager::install("RPMM")
+# BiocManager::install("pals")
+# BiocManager::install("SummarizedExperiment")
+# packageVersion("SummarizedExperiment")
+# BiocManager::install("minfi")
+# BiocManager::install("BiocParallel")
+# packageVersion("BiocParallel")
+# BiocManager::install("GenomicRanges")
+# BiocManager::install("BiocFileCache")
+# BiocManager::install("Bioconductor/BiocFileCache")
+# install.packages("tibble")
+# packageVersion("tibble")
+# install.packages("tidyr")
+# install.packages("gprofiler2")
+# install.packages("ggrepel")
+# install.packages("cowplot")
+# install.packages("corrplot")
+# install.packages("readxl")
+# install.packages("stats")
+# install.packages("reshape2")
+install.packages("tidyverse")
+```
+
+```{r}
+library(sesame)
+library(sesameData)
+library(ExperimentHub)
+library(parallel)
+library(ggplot2)
+library(dplyr)
+library(RPMM)
+library(pals)
+library(BiocFileCache)
+packageVersion("BiocFileCache")
+packageVersion("dbplyr")
+library(SummarizedExperiment)
+library(minfi)
+library(BiocParallel)
+library(GenomicRanges)
+library(tibble)
+library(tidyr)
+library(gprofiler2)
+library(ggrepel)
+library(cowplot)
+library(corrplot)
+library(readxl)
+library(stats)
+library(reshape2)
+library(tidyverse)
+```
+
+
+```{r}
+#info 
+packageVersion("sesame")
+sessionInfo()
+citation("sesame")
+sesameDataCache()
+```
+
+##### MANIFEST (mft) #######
+
+```{r}
+# getting the manifest object
+# mft = sesameDataGet("EPIC.address")$ordering
+# head(mft, 20)
+
+#Alternatively
+tsv_path <- "J:/DII ALL6/Projects/Pablo/November/EPIC.hg38.manifest.tsv.gz"
+sesameData_check_platform(platform = )
+tsv_path
+mft <- sesameAnno_buildAddressFile(tsv_path)
+head(mft, 20)
+```
+#################### Opening IDAT files ###################
+
+```{r}
+#Import IDAT files, pair by pair and with all the IDATs in the same folder otherwise it doesn't work (error can't find GRN file)
+#Do it in the right order (already clustered by group), simpler afterwards.
+setwd("J:/DII ALL6/Projects/Pablo/November/Idat_Files")
+sdf1 = readIDATpair("207717880162_R01C01", platform = "EPIC", manifest = mft, controls = NULL, verbose = TRUE)
+sdf2 = readIDATpair("207717880162_R02C01", platform = "EPIC", manifest = mft, controls = NULL, verbose = TRUE)
+sdf3 = readIDATpair("207717880162_R03C01", platform = "EPIC", manifest = mft, controls = NULL, verbose = TRUE)
+sdf4 = readIDATpair("207717880162_R04C01", platform = "EPIC", manifest = mft, controls = NULL, verbose = TRUE)
+sdf5 = readIDATpair("207717880162_R05C01", platform = "EPIC", manifest = mft, controls = NULL, verbose = TRUE)
+sdf6 = readIDATpair("207717880162_R06C01", platform = "EPIC", manifest = mft, controls = NULL, verbose = TRUE)
+sdf7 = readIDATpair("207717880162_R07C01", platform = "EPIC", manifest = mft, controls = NULL, verbose = TRUE)
+sdf8 = readIDATpair("207717880162_R08C01", platform = "EPIC", manifest = mft, controls = NULL, verbose = TRUE)
+sdf9 = readIDATpair("207717880174_R01C01", platform = "EPIC", manifest = mft, controls = NULL, verbose = TRUE)
+sdf10 = readIDATpair("207717880174_R02C01", platform = "EPIC", manifest = mft, controls = NULL, verbose = TRUE)
+sdf11 = readIDATpair("207717880174_R03C01", platform = "EPIC", manifest = mft, controls = NULL, verbose = TRUE)
+sdf12 = readIDATpair("207717880174_R04C01", platform = "EPIC", manifest = mft, controls = NULL, verbose = TRUE)
+sdf13 = readIDATpair("207717880174_R05C01", platform = "EPIC", manifest = mft, controls = NULL, verbose = TRUE)
+sdf14 = readIDATpair("207717880174_R06C01", platform = "EPIC", manifest = mft, controls = NULL, verbose = TRUE)
+sdf15 = readIDATpair("207717880174_R07C01", platform = "EPIC", manifest = mft, controls = NULL, verbose = TRUE)
+sdf16 = readIDATpair("207717880174_R08C01", platform = "EPIC", manifest = mft, controls = NULL, verbose = TRUE)
+
+#SigDF (sdf) objects are obtained
+head(sdf1)    #example for sample1
+```
+
+################   PREPROCESSING   ##########--------------------------------------------------------------------------------------------
+
+```{r}
+#create a list of sdf files, regroup all the SigDFs together in a single list object
+IDATs_november <- list(sdf1, sdf2, sdf3, sdf4, sdf5, sdf6, sdf7, sdf8,sdf9, sdf10, sdf11, sdf12, sdf13, sdf14, sdf15, sdf16)
+
+# IDATs_november <- list(sdf1, sdf2)
+# Assuming mft contains the manifest and IDATs_november is a list of sdf objects
+
+# IDATs_november <- list(sdf1, sdf2)
+#apply the openSesame() function to the list with the proper precprocessing code (here : QCDPB)
+normalized_sdf_list_november <- openSesame(IDATs_november, prep = "QCDPB", prep_args = NULL, manifest = mft, func = NULL, BPPARAM = SerialParam(), platform = "EPIC")
+normalized_sdf_list_november
+```
+
+
+```{r}
+#check number of masked probes
+lapply(IDATs_november, function(x) sum(x$mask))                            #number of masked probes before preprocessing
+lapply(normalized_sdf_list_november, function(x) sum(x$mask))               #number of masked probes after preprocessing
+```
+
+
+
+```{r}
+#visualisation of beta distribution
+#for sample n°1 ([[1]])
+
+par(mfrow=c(2,1), mar=c(3,3,2,1))
+sesameQC_plotBetaByDesign(IDATs_november[[1]], main="Before", xlab="\beta")
+rm(IDATs_november)#remove unecessary Data to seep up processing
+sesameQC_plotBetaByDesign(matchDesign(normalized_sdf_list_november[[1]]), main="After", xlab="\beta")
+```
+
+########## Extracting Betas and inferring sample and mapping metadata  ################
+
+#EXTRACTING BETAS and getting beta matrix
+```{r}
+#calculate beta values for every sample 
+betas_list_november <- lapply(normalized_sdf_list_november, function(x) {getBetas(x, mask = TRUE)})
+rm(normalized_sdf_list_november)
+
+#combine betas from each sample into a single matrix
+betas_november <- do.call("cbind", betas_list_november)
+rm(betas_list_november)
+head(betas_november)                #BETA MATRIX
+dim(betas_november)
+```
+
+#Getting samples metadata
+```{r}
+#Creating a coldata df to infer sample metadata
+setwd("C:/Program Files/RStudio/Code_and_data")
+cd_november <- read.csv("C:/Program Files/RStudio/Code_and_data/coldatadf_november_clustered_Twins.csv")
+# samplesheet
+colnames(cd_november)
+#[1] "IDAT"         "Sample_Group"   "Twins"
+```
+
+#Imputing sample names in the columns of the beta matrix
+```{r}
+cd_november$IDAT
+colnames(betas_november) <- cd_november$IDAT
+head(betas_november)
+```
+
+#Creating GRanges object from manifest (Getting probe metadata)
+```{r}
+#Download the manifest file from http://zwdzwd.github.io/InfiniumAnnotation#mouse and specify path
+tsv_path <- "J:/DII ALL6/Projects/Pablo/November/EPIC.hg38.manifest.tsv.gz"
+
+#create the genomic ranges (GRanges)  manifest object
+manifest <- sesameAnno_buildManifestGRanges(tsv_path, genome="hg38", decoy=FALSE, columns=NULL)
+#296070 probes in GRanges.
+#7415 probes belong to chr*.
+#0 probes on decoy chr.
+
+#extract the correct probe order as character Vector from betas matrix
+probe_ids_cv <- rownames(betas_november)          
+head(probe_ids_cv)
+#[1] "cg00101675_BC21" "cg00116289_BC21" "cg00211372_TC21" "cg00531009_BC21" "cg00747726_TC21"
+#[6] "cg00896209_TC21"
+
+
+#reorder manifest in right Probe_IDs order
+manifest_reordered <- manifest[probe_ids_cv]
+manifest_reordered
+head(manifest_reordered)
+view(manifest_reordered)
+# GRanges object with 6 ranges and 0 metadata columns:
+#              seqnames      ranges strand
+#                 <Rle>   <IRanges>  <Rle>
+#   cg26928153     chr1 10848-10849      +
+#   cg16269199     chr1 10850-10851      +
+#   cg13869341     chr1 15865-15866      -
+#   cg14008030     chr1 18827-18828      -
+#   cg12045430     chr1 29407-29408      -
+#   cg20826792     chr1 29425-29426      -
+#   -------
+#   seqinfo: 26 sequences from an unspecified genome; no seqlengths
+
+
+regs = sesameData_getTxnGRanges("hg38")
+Probe_IDs = names(sesameData_getManifestGRanges("EPIC"))
+anno = sesameData_annoProbes(Probe_IDs, promoters(regs), column="gene_name")
+
+
+```
+
+#Inferring metadata to betas matrix, creating a RangedSummarizedExperiment object
+```{r}
+#Creating a RangedSummarizedExperiment object 
+Rse_november <- SummarizedExperiment(
+  assay = betas_november,
+  colData = cd_november,
+  rowData = NULL,
+  rowRanges = manifest_reordered,
+  checkDimnames=TRUE)
+
+Rse_november
+```
+
+
+#Checking coldata (Sample Metadata)
+```{r}
+#extract the relevant metadata from the column data slot of Rse object
+# meta_november = dplyr::select(as_tibble(colData(Rse_november)), IDAT, Sample_Group, Twins)
+# head(meta_november)
+#check internal structure of meta object
+# str(meta_november)              #the nominal variables are represented as characters 
+
+# Re-assign the factors with levels 
+colData(Rse_november)$Sample_Group <- factor(colData(Rse_november)$Sample_Group, levels = c("normal", "divergent"), ordered = FALSE)
+colData(Rse_november)$Sample_Group <- relevel(colData(Rse_november)$Sample_Group, ref = "normal")
+
+colData(Rse_november)$Twins <- factor(colData(Rse_november)$Twins, levels = c("1", "2", "3", "4", "5", "6", "7", "8"), ordered = FALSE)
+#check for mistakes
+str(colData(Rse_november))
+
+meta_november = dplyr::select(as_tibble(colData(Rse_november)), IDAT, Sample_Group, Twins)
+
+head(meta_november)
+```
+
+
+#filter out NAs (failed probes)
+```{r}
+#check if there is no NA
+betas_november = assay(Rse_november)#extract beta matrix
+head(betas_november)
+ok1_november = checkLevels(betas_november, meta_november$Twins)
+sum(ok1_november)     #gives probes that are ok    
+
+betas_november[which(!ok1_november)[1],]       #gives the probes that failed
+
+
+ok2_november = checkLevels(betas_november, meta_november$Sample_Group)
+sum(ok2_november) #gives probes that are ok
+
+#filter probes based on all indicators
+filtered_betas_november = betas_november[ok1_november&ok2_november, ]
+# rm(ok1_november)
+# rm(ok2_november)
+#shape of final betas
+dim(betas_november)
+dim(filtered_betas_november)
+head(filtered_betas_november)
+```
+
+
+#checking for outliers in matched
+```{r}
+
+#create a boxplot for each matched Twinpair
+
+plot_matched1 <- boxplot(
+  abs(filtered_betas_november[, 1] - filtered_betas_november[, 2]),
+    ylim = c(0, 1.1)  # Adjust the y-axis limits as needed
+)
+
+plot_matched1$stats
+
+plot_matched2 <- boxplot(
+  abs(filtered_betas_november[, 3] - filtered_betas_november[, 4]),
+    ylim = c(0, 5)  # Adjust the y-axis limits as needed
+)
+plot_matched3 <- boxplot(
+  abs(filtered_betas_november[, 5] - filtered_betas_november[, 6]),
+    ylim = c(0, 5)  # Adjust the y-axis limits as needed
+)
+plot_matched4 <- boxplot(
+  abs(filtered_betas_november[, 7] - filtered_betas_november[, 8]),
+    ylim = c(0, 5)  # Adjust the y-axis limits as needed
+)
+plot_matched5 <- boxplot(
+  abs(filtered_betas_november[, 9] - filtered_betas_november[, 10]),
+    ylim = c(0, 5)  # Adjust the y-axis limits as needed
+)
+plot_matched6 <- boxplot(
+  abs(filtered_betas_november[, 11] - filtered_betas_november[, 12]),
+    ylim = c(0, 5)  # Adjust the y-axis limits as needed
+)
+plot_matched7 <- boxplot(
+  abs(filtered_betas_november[, 13] - filtered_betas_november[, 14]),
+    ylim = c(0, 5)  # Adjust the y-axis limits as needed
+)
+plot_matched8 <- boxplot(
+  abs(filtered_betas_november[, 15] - filtered_betas_november[, 16]),
+  ylim = c(0, 5)  # Adjust the y-axis limits as needed
+)
+# Extract outlier values
+# Calculate the total sum of outliers for each plot_matched for the graph naming
+sum_outliers_plot1 <- sum(length(plot_matched1$out))
+sum_outliers_plot2 <- sum(length(plot_matched2$out))
+sum_outliers_plot3 <- sum(length(plot_matched3$out))
+sum_outliers_plot4 <- sum(length(plot_matched4$out))
+sum_outliers_plot5 <- sum(length(plot_matched5$out))
+sum_outliers_plot6 <- sum(length(plot_matched6$out))
+sum_outliers_plot7 <- sum(length(plot_matched7$out))
+sum_outliers_plot8 <- sum(length(plot_matched8$out))
+
+# Print the total sum of outliers for each plot_matched
+print(sum_outliers_plot1)
+print(sum_outliers_plot2)
+print(sum_outliers_plot3)
+print(sum_outliers_plot4)
+print(sum_outliers_plot5)
+print(sum_outliers_plot6)
+print(sum_outliers_plot7)
+print(sum_outliers_plot8)
+
+#total sum of outliers
+total_outliers_matched <- sum(length(plot_matched1$out), length(plot_matched2$out), length(plot_matched3$out), length(plot_matched4$out),
+                      length(plot_matched5$out), length(plot_matched6$out), length(plot_matched7$out), length(plot_matched8$out))
+
+# Print the total sum of outliers for each row
+print(total_outliers_matched)
+```
+
+#checking for outliers in random
+```{r}
+
+plot_random1 <- boxplot(
+  abs(filtered_betas_november[, 11] - filtered_betas_november[, 6]),
+    ylim = c(0, 5)  # Adjust the y-axis limits as needed
+)
+print(plot_random1)
+
+plot_random2 <- boxplot(
+  abs(filtered_betas_november[, 1] - filtered_betas_november[, 7]),
+    ylim = c(0, 5)  # Adjust the y-axis limits as needed
+)
+plot_random3 <- boxplot(
+  abs(filtered_betas_november[, 16] - filtered_betas_november[, 4]),
+    ylim = c(0, 5)  # Adjust the y-axis limits as needed
+)
+plot_random4 <- boxplot(
+  abs(filtered_betas_november[, 9] - filtered_betas_november[, 2]),
+    ylim = c(0, 5)  # Adjust the y-axis limits as needed
+)
+plot_random5 <- boxplot(
+  abs(filtered_betas_november[, 5] - filtered_betas_november[, 12]),
+    ylim = c(0, 5)  # Adjust the y-axis limits as needed
+)
+plot_random6 <- boxplot(
+  abs(filtered_betas_november[, 13] - filtered_betas_november[, 8]),
+    ylim = c(0, 5)  # Adjust the y-axis limits as needed
+)
+plot_random7 <- boxplot(
+  abs(filtered_betas_november[, 14] - filtered_betas_november[, 3]),
+    ylim = c(0, 5)  # Adjust the y-axis limits as needed
+)
+plot_random8 <- boxplot(
+  abs(filtered_betas_november[, 15] - filtered_betas_november[, 2]),
+  ylim = c(0, 5)  # Adjust the y-axis limits as needed
+)
+
+# Extract outlier values
+# Calculate the total sum of outliers for each plot_random
+sum_outliers_plot1_random <- sum(length(plot_random1$out))
+sum_outliers_plot2_random <- sum(length(plot_random2$out))
+sum_outliers_plot3_random <- sum(length(plot_random3$out))
+sum_outliers_plot4_random <- sum(length(plot_random4$out))
+sum_outliers_plot5_random <- sum(length(plot_random5$out))
+sum_outliers_plot6_random <- sum(length(plot_random6$out))
+sum_outliers_plot7_random <- sum(length(plot_random7$out))
+sum_outliers_plot8_random <- sum(length(plot_random8$out))
+
+# Calculate the total sum of outliers for the random plots
+total_outliers_random <- sum(
+  length(plot_random1$out), length(plot_random2$out), length(plot_random3$out),
+  length(plot_random4$out), length(plot_random5$out), length(plot_random6$out),
+  length(plot_random7$out), length(plot_random8$out)
+)
+
+print(total_outliers_random)
+#create total sum of outliers
+
+
+```
+
+
+
+```{r}
+
+# Open a PDF file to save the plots
+pdf("matched_and_random_plots_absolute_colored_with_names_and_counts_above_cutoff.pdf")
+
+# Set colors for the boxplots
+
+# Set names for the comparisons
+plot_names_matched <- c(
+  "1-2", "3-4", "5-6", "7-8", "9-10", "11-12", "13-14", "15-16"
+)
+
+
+
+# Code for matched plots with absolute values, colors for values above cutoff, names, and counts
+plot_matched <- boxplot(
+  abs(filtered_betas_november[, 1] - filtered_betas_november[, 2]),
+  abs(filtered_betas_november[, 3] - filtered_betas_november[, 4]),
+  abs(filtered_betas_november[, 5] - filtered_betas_november[, 6]),
+  abs(filtered_betas_november[, 7] - filtered_betas_november[, 8]),
+  abs(filtered_betas_november[, 9] - filtered_betas_november[, 10]),
+  abs(filtered_betas_november[, 11] - filtered_betas_november[, 12]),
+  abs(filtered_betas_november[, 13] - filtered_betas_november[, 14]),
+  abs(filtered_betas_november[, 15] - filtered_betas_november[, 16]),
+  names = plot_names_matched,  # Assign names
+  ylim = c(0, 1.1)  # Adjust the y-axis limits as needed
+)
+
+# List of outliers sums for each column of x
+outliers_sums <- c(sum_outliers_plot1, sum_outliers_plot2, sum_outliers_plot3, sum_outliers_plot4,
+                   sum_outliers_plot5, sum_outliers_plot6, sum_outliers_plot7, sum_outliers_plot8)
+
+text(
+  x = 1:8,  # x-coordinates for text annotations (columns of x)
+  y = apply(plot_matched$stats, 2, max) + 1,  # y-coordinate for text annotations (above each column)
+  labels = outliers_sums,  # outlier sums per column of x
+  pos = 3,  # position the text above the data points
+  col = "red"  # color of the text
+)
+print(plot_matched)
+
+
+# Code for random plots with absolute values, colors for values above cutoff, names, and counts
+plot_names_random <- c(
+  "6-11", "1-7", "16-4","9-2", "5-12", "13-8", "14-3", "15-2"
+)
+plot_random <- boxplot(
+  abs(filtered_betas_november[, 11] - filtered_betas_november[, 6]),
+  abs(filtered_betas_november[, 1] - filtered_betas_november[, 7]),
+  abs(filtered_betas_november[, 16] - filtered_betas_november[, 4]),
+  abs(filtered_betas_november[, 9] - filtered_betas_november[, 2]),
+  abs(filtered_betas_november[, 5] - filtered_betas_november[, 12]),
+  abs(filtered_betas_november[, 13] - filtered_betas_november[, 8]),
+  abs(filtered_betas_november[, 14] - filtered_betas_november[, 3]),
+  abs(filtered_betas_november[, 15] - filtered_betas_november[, 2]),
+  names = plot_names_random,  # Assign names
+  ylim = c(0, 1.1)  # Adjust the y-axis limits as needed
+)
+
+outliers_sums_random <- c(sum_outliers_plot1_random, sum_outliers_plot2_random, sum_outliers_plot3_random, sum_outliers_plot4_random,
+                   sum_outliers_plot5_random, sum_outliers_plot6_random, sum_outliers_plot7_random, sum_outliers_plot8_random)
+text(
+  x = 1:8,  # x-coordinates for text annotations (columns of x)
+  y = apply(plot_matched$stats, 2, max) + 1,  # y-coordinate for text annotations (above each column)
+  labels = outliers_sums_random,  # outlier sums per column of x
+  pos = 3,  # position the text above the data points
+  col = "red"  # color of the text
+)
+print(plot_random)
+# Save and close the PDF file
+dev.off()
+
+```
+
+
+```{r}
+# Calculate absolute differences
+abs_diff <-abs(filtered_betas_november[, c(1, 3, 5, 7, 9, 11, 13, 15)] - filtered_betas_november[, c(2, 4, 6, 8, 10, 12, 14, 16)])
+
+
+# Find rows where absolute differences are above 0.9
+above_0.6_indices <- which(abs_diff > 0.6, arr.ind = TRUE)
+rows_above_0.6 <- unique(above_0.6_indices[, 1])
+
+# Extract CGs associated with these rows
+selected_CpGs <- filtered_betas_november[rows_above_0.6, ]
+head(selected_CpGs)
+```
+
+```{r}
+# Find rows for each threshold level and store in respective matrices
+
+above_0.1_indices <- which(abs_diff > 0.1, arr.ind = TRUE)
+rows_above_0.1 <- unique(above_0.1_indices[, 1])
+CpGs_Delta0.1 <- filtered_betas_november[rows_above_0.1, ]
+
+above_0.2_indices <- which(abs_diff > 0.2, arr.ind = TRUE)
+rows_above_0.2 <- unique(above_0.2_indices[, 1])
+CpGs_Delta0.2 <- filtered_betas_november[rows_above_0.2, ]
+
+above_0.3_indices <- which(abs_diff > 0.3, arr.ind = TRUE)
+rows_above_0.3 <- unique(above_0.3_indices[, 1])
+CpGs_Delta0.3 <- filtered_betas_november[rows_above_0.3, ]
+
+above_0.4_indices <- which(abs_diff > 0.4, arr.ind = TRUE)
+rows_above_0.4 <- unique(above_0.4_indices[, 1])
+CpGs_Delta0.4 <- filtered_betas_november[rows_above_0.4, ]
+
+above_0.5_indices <- which(abs_diff > 0.5, arr.ind = TRUE)
+rows_above_0.5 <- unique(above_0.5_indices[, 1])
+CpGs_Delta0.5 <- filtered_betas_november[rows_above_0.5, ]
+
+above_0.6_indices <- which(abs_diff > 0.6, arr.ind = TRUE)
+rows_above_0.6 <- unique(above_0.6_indices[, 1])
+CpGs_Delta0.6 <- filtered_betas_november[rows_above_0.6, ]
+
+above_0.7_indices <- which(abs_diff > 0.7, arr.ind = TRUE)
+rows_above_0.7 <- unique(above_0.7_indices[, 1])
+CpGs_Delta0.7 <- filtered_betas_november[rows_above_0.7, ]
+
+above_0.8_indices <- which(abs_diff > 0.8, arr.ind = TRUE)
+rows_above_0.8 <- unique(above_0.8_indices[, 1])
+CpGs_Delta0.8 <- filtered_betas_november[rows_above_0.8, ]
+
+above_0.9_indices <- which(abs_diff > 0.9, arr.ind = TRUE)
+rows_above_0.9 <- unique(above_0.9_indices[, 1])
+CpGs_Delta0.9 <- filtered_betas_november[rows_above_0.9, ]
+```
+
+
+```{r}
+
+# Calculate absolute differences for all CpGs_Delta matrices
+abs_diff_CpGs0.1 <- abs(CpGs_Delta0.1[, c(1, 3, 5, 7, 9, 11, 13, 15)] - CpGs_Delta0.1[, c(2, 4, 6, 8, 10, 12, 14, 16)])
+abs_diff_CpGs0.2 <- abs(CpGs_Delta0.2[, c(1, 3, 5, 7, 9, 11, 13, 15)] - CpGs_Delta0.2[, c(2, 4, 6, 8, 10, 12, 14, 16)])
+abs_diff_CpGs0.3 <- abs(CpGs_Delta0.3[, c(1, 3, 5, 7, 9, 11, 13, 15)] - CpGs_Delta0.3[, c(2, 4, 6, 8, 10, 12, 14, 16)])
+abs_diff_CpGs0.4 <- abs(CpGs_Delta0.4[, c(1, 3, 5, 7, 9, 11, 13, 15)] - CpGs_Delta0.4[, c(2, 4, 6, 8, 10, 12, 14, 16)])
+abs_diff_CpGs0.5 <- abs(CpGs_Delta0.5[, c(1, 3, 5, 7, 9, 11, 13, 15)] - CpGs_Delta0.5[, c(2, 4, 6, 8, 10, 12, 14, 16)])
+abs_diff_CpGs0.6 <- abs(CpGs_Delta0.6[, c(1, 3, 5, 7, 9, 11, 13, 15)] - CpGs_Delta0.6[, c(2, 4, 6, 8, 10, 12, 14, 16)])
+abs_diff_CpGs0.7 <- abs(CpGs_Delta0.7[, c(1, 3, 5, 7, 9, 11, 13, 15)] - CpGs_Delta0.7[, c(2, 4, 6, 8, 10, 12, 14, 16)])
+abs_diff_CpGs0.8 <- abs(CpGs_Delta0.8[, c(1, 3, 5, 7, 9, 11, 13, 15)] - CpGs_Delta0.8[, c(2, 4, 6, 8, 10, 12, 14, 16)])
+abs_diff_CpGs0.9 <- abs(CpGs_Delta0.9[, c(1, 3, 5, 7, 9, 11, 13, 15)] - CpGs_Delta0.9[, c(2, 4, 6, 8, 10, 12, 14, 16)])
+
+# Displaying the head of abs_diff_CpGs0.9 as an example
+head(abs_diff_CpGs0.9)
+```
+
+```{r}
+# Find indices where values exceed the threshold
+above_threshold_indices0.1 <- apply(abs_diff_CpGs0.1 > 0.1, 1, function(x) sum(x))
+above_threshold_indices0.2 <- apply(abs_diff_CpGs0.2 > 0.2, 1, function(x) sum(x))
+above_threshold_indices0.3 <- apply(abs_diff_CpGs0.3 > 0.3, 1, function(x) sum(x))
+above_threshold_indices0.4 <- apply(abs_diff_CpGs0.4 > 0.4, 1, function(x) sum(x))
+above_threshold_indices0.5 <- apply(abs_diff_CpGs0.5 > 0.5, 1, function(x) sum(x))
+above_threshold_indices0.6 <- apply(abs_diff_CpGs0.6 > 0.6, 1, function(x) sum(x))
+above_threshold_indices0.7 <- apply(abs_diff_CpGs0.7 > 0.7, 1, function(x) sum(x))
+above_threshold_indices0.8 <- apply(abs_diff_CpGs0.8 > 0.8, 1, function(x) sum(x))
+above_threshold_indices0.9 <- apply(abs_diff_CpGs0.9 > 0.9, 1, function(x) sum(x))
+
+# Create a new column to store occurrences
+abs_diff_hit_CpGs0.1 <- cbind(abs_diff_CpGs0.1, hits = above_threshold_indices0.1)
+abs_diff_hit_CpGs0.2 <- cbind(abs_diff_CpGs0.2, hits = above_threshold_indices0.2)
+abs_diff_hit_CpGs0.3 <- cbind(abs_diff_CpGs0.3, hits = above_threshold_indices0.3)
+abs_diff_hit_CpGs0.4 <- cbind(abs_diff_CpGs0.4, hits = above_threshold_indices0.4)
+abs_diff_hit_CpGs0.5 <- cbind(abs_diff_CpGs0.5, hits = above_threshold_indices0.5)
+abs_diff_hit_CpGs0.6 <- cbind(abs_diff_CpGs0.6, hits = above_threshold_indices0.6)
+abs_diff_hit_CpGs0.7 <- cbind(abs_diff_CpGs0.7, hits = above_threshold_indices0.7)
+abs_diff_hit_CpGs0.8 <- cbind(abs_diff_CpGs0.8, hits = above_threshold_indices0.8)
+abs_diff_hit_CpGs0.9 <- cbind(abs_diff_CpGs0.9, hits = above_threshold_indices0.9)
+# Display the matrix with added column
+view(abs_diff_hit_CpGs0.8)
+
+```
+
+
+```{r}
+
+# out=tibble(threshold=NA,occour=NA,n=NA)
+
+for (i in 1:9) {
+  assign(paste0("abs_diff_hit_CpGs0.", i), get(paste0("abs_diff_hit_CpGs0.", i))[, "hits"])
+}
+
+
+
+table <- grep("abs_diff_hit_CpGs0", ls(), value = TRUE)
+
+tmp <- get(table[1])
+tmp_df <- data.frame(hits = tmp)
+
+tmp <- tmp_df %>%
+  group_by(hits) %>%
+  summarise(n = n()) %>%
+  mutate(threshold = hits) %>%
+  glimpse()
+
+out <- tmp
+
+for(j in c(2:9)){
+  tmp <- get(table[j])
+  tmp_df <- data.frame(hits = tmp)
+  tmp <- tmp_df %>%
+    group_by(hits) %>% 
+    summarise(n = n()) %>% 
+    mutate(threshold=j) %>% 
+    glimpse()
+  
+  out <- out %>% 
+    add_row(tmp)
+} 
+
+
+
+```
+
+```{r}
+
+#infering gene from probe
+sesameData_getGenesByProbes(
+  c("cg02101808","cg20483857","cg05236660"),
+  platform = "EPIC",
+  genome = "hg38",
+  max_distance = 100
+)
+
+#infering probe from gene  
+sesameData_getProbesByGene(
+gene_name = "SAMD15",
+platform = "EPIC",
+upstream = 0,
+downstream = 0,
+genome = "hg38"
+)
+
+ST6GAL21 <- sesameData_getProbesByGene(
+gene_name = "ST6GAL2",
+platform = "EPIC",
+upstream = 0,
+downstream = 0,
+genome = "hg38"
+)
+
+names(ST6GAL21)
+ST6GAL2_T <- as_tibble(ST6GAL21) %>% 
+  mutate(CpGs=names(ST6GAL21)) %>% 
+  glimpse()
+view(ST6GAL21)
+
+```
+
+```{r}
+genes_list <- read.csv("genes_list.csv")               #for protein coding genes only
+gene_names <- genes_list$gene_name
+
+#for all extracted genes 
+lapply(gene_names, function(gene_name) {visualizeGene(gene_name, filtered_betas_november, 'EPIC')})
+```
+
+
+```{r}
+visualizeGene("Tcf23", filtered_betas_november, 'EPIC')
+```
+
+###########   Differential Methylation Modeling   ###############-----------------------------------------------------------------------------------
+
+
+###########################  EWAS   ##################################################### 
+
+#linear modeling of the data (DML)
+
+```{r}
+#Differentially Methylatied Locus (DML)
+# smry_november = DML(filtered_betas_november, ~Sample_Group+Sex, meta=meta_november, BPPARAM = SerialParam())            #(for two contrasts)
+
+
+# sesameDataCache() # in case not done yet
+# data <- sesameDataGet('HM450.76.TCGA.matched')
+# smry <- DML(data$betas[1:1000,], ~type, meta=data$sampleInfo)
+# 
+# tmp<-data$sampleInfo
+# 
+# sesameDataGet_resetEnv()
+# 
+# 
+# tmp<-meta_november
+
+row.names(meta_november) <- meta_november$IDAT
+head(meta_november)
+filtered_betas_november_top <- filtered_betas_november[1:10000,]
+
+smry_november = DML(filtered_betas_november_top, ~Sample_Group, meta=meta_november, BPPARAM = SerialParam())
+smry_november
+
+smry_november[[1]]                                  #for first sample
+
+res_november = summaryExtractTest(smry_november)#extract results
+rm(smry_november)
+head(res_november)
+dim(res_november) 
+str(res_november)
+#size of dataframe
+#[1] 272337     7
+```
+###Rename for pivoting###
+```{r}
+names(res_november)[names(res_november) == "Pval_Sample_Groupnormal"] <- "Pval_Twins1"
+names(res_november)[names(res_november) == "Est_Sample_Groupnormal"] <- "Est_Twins1"
+head(res_november)
+```
+```{r}
+subset_res_november <- res_november[res_november$Pval_Sample_Groupnormal < 0.05, ]
+subset_res_november
+
+subset_res_november_1 <- res_november[res_november$Pval_Sample_Groupnormal < 0.01, ]
+subset_res_november_1
+
+sig_probe_ID_list_1 <- subset_res_november$Probe_ID                   ##used the <0.01 threshold for now (since unadjusted)
+# Remove probes not in res_november
+sig_probe_ID_list_1 <- sig_probe_ID_list_1[sig_probe_ID_list_1 %in% res_november$Probe_ID]
+
+# Subset the beta matrix to include only the rows with probe IDs in the list
+subset_beta_matrix <- filtered_betas_november[rownames(filtered_betas_november) %in% sig_probe_ID_list_1, ]
+
+head(subset_beta_matrix)
+```
+
+```{r}
+setwd("J:/DII ALL6/Projects/Pablo/November/Idat_Files")
+sdf1 = readIDATpair("207717880162_R01C01", platform = "EPIC", manifest = mft, controls = NULL, verbose = TRUE)
+sdf2 = readIDATpair("207717880162_R02C01", platform = "EPIC", manifest = mft, controls = NULL, verbose = TRUE)
+sdf3 = readIDATpair("207717880162_R03C01", platform = "EPIC", manifest = mft, controls = NULL, verbose = TRUE)
+sdf4 = readIDATpair("207717880162_R04C01", platform = "EPIC", manifest = mft, controls = NULL, verbose = TRUE)
+sdf5 = readIDATpair("207717880162_R05C01", platform = "EPIC", manifest = mft, controls = NULL, verbose = TRUE)
+sdf6 = readIDATpair("207717880162_R06C01", platform = "EPIC", manifest = mft, controls = NULL, verbose = TRUE)
+sdf7 = readIDATpair("207717880162_R07C01", platform = "EPIC", manifest = mft, controls = NULL, verbose = TRUE)
+sdf8 = readIDATpair("207717880162_R08C01", platform = "EPIC", manifest = mft, controls = NULL, verbose = TRUE)
+sdf9 = readIDATpair("207717880174_R01C01", platform = "EPIC", manifest = mft, controls = NULL, verbose = TRUE)
+sdf10 = readIDATpair("207717880174_R02C01", platform = "EPIC", manifest = mft, controls = NULL, verbose = TRUE)
+sdf11 = readIDATpair("207717880174_R03C01", platform = "EPIC", manifest = mft, controls = NULL, verbose = TRUE)
+sdf12 = readIDATpair("207717880174_R04C01", platform = "EPIC", manifest = mft, controls = NULL, verbose = TRUE)
+sdf13 = readIDATpair("207717880174_R05C01", platform = "EPIC", manifest = mft, controls = NULL, verbose = TRUE)
+sdf14 = readIDATpair("207717880174_R06C01", platform = "EPIC", manifest = mft, controls = NULL, verbose = TRUE)
+sdf15 = readIDATpair("207717880174_R07C01", platform = "EPIC", manifest = mft, controls = NULL, verbose = TRUE)
+sdf16 = readIDATpair("207717880174_R08C01", platform = "EPIC", manifest = mft, controls = NULL, verbose = TRUE)
+
+# Assuming 'res_november_no_missing' is your data frame and 'IDAT' is a column containing IDAT values
+Twins <- c("207717880162_R01C01", "207717880162_R02C01", "207717880162_R03C01", "207717880162_R04C01", "207717880162_R05C01", "207717880162_R06C01", "207717880162_R07C01", "207717880162_R08C01", "207717880174_R01C01", "207717880174_R02C01", "207717880174_R03C01", "207717880174_R04C01", "207717880174_R05C01", "207717880174_R06C01", "207717880174_R07C01", "207717880174_R08C01")  # List of specific IDAT values
+
+# Create pairs of IDAT values
+Twin_pairs <- combn(Twins, 2, simplify = TRUE)
+
+# Loop through each pair of IDAT values and create paired plots
+for (i in 1:ncol(Twin_pairs)) {
+  # Filter data for the specific pair of IDAT values
+  filtered_data <- res_november_no_missing %>%
+    filter(IDAT %in% Twin_pairs[, i])
+  
+  # Create ggplot for the filtered data
+  plot_title <- paste("Plot for Twin pairs:", paste(Twin_pairs[, i], collapse = " and "))  # Create a title for each pair
+  plot <- ggplot(filtered_data) +
+    geom_point(aes(x = Est_Sample_Groupnormal, y = -log10(Pval_Sample_Groupnormal))) +
+    coord_cartesian(ylim = c(0, 7)) +
+    ggtitle(plot_title)  # Set the plot title
+  
+  # Print each plot
+  print(plot)
+}
+
+res_november_no_missing <- na.omit(res_november)    
+#ask whether DNA methylation is different between H1N1 and Ctl groups
+#Est_Sample_GroupH1N1 compares H1N1 group to Ctl
+ggplot(res_november_no_missing) + geom_point(aes(Est_Sample_Groupnormal, -log10(Pval_Sample_Groupnormal))) +
+  coord_cartesian(ylim = c(0, 7))
+```
+
+###Reshape df to long format based on cg###
+```{r}
+# df_long <- df %>%
+#   pivot_longer(cols = cg, names_to = Probe_ID, values_to = "Probe_ID")
+# head(df_long)
+
+names(df)[names(df) == "cg"] <- "Probe_ID"
+
+res_november_org <- res_november %>% 
+  pivot_longer(c(Est_Twins1,Est_Twins2,Est_Twins3,Est_Twins4,Est_Twins5,Est_Twins6, Est_Twins7, Est_Twins8), values_to = "EST",names_to = "Twin") %>% 
+  pivot_longer(c(Pval_Twins1,Pval_Twins2,Pval_Twins3,Pval_Twins4,Pval_Twins5,Pval_Twins6,Pval_Twins7, Pval_Twins8), values_to = "Pval",names_to = "Twin2") %>% 
+
+
+# Join the reshaped datasets
+
+df_sig <- res_november_org %>% 
+  pivot_longer(contains("Twins"),values_to = "value",names_to = "Twin") %>% 
+  separate_wider_delim(Twin,delim = "_",names= c("type", "Twin")) %>%
+  pivot_wider(names_from = type,values_from = value) %>% 
+  separate_wider_delim(Twin,delim = "Twins",names = c(NA,"Twins")) %>% 
+  # pivot_longer(contains("Pval_Twins"),values_to = "Pval",names_to = "Twin2") %>% 
+ 
+  # pivot_longer(contains("Pval_Twins"),values_to = "Pval",names_to = "Twin2") %>% 
+  
+
+# Join the reshaped datasets by Probe_ID
+df_sig2 <- df %>%
+  full_join(df_sig) %>% 
+  head()
+
+```
+
+
+
+
+###CHECK IF A TWINPAIR HAS NO SIGNIFICANT METHYLATION###
+```{r}
+
+
+twin_pairs <- df_sig2 %>%
+  filter(rowSums(select(., starts_with("Pval"))) < 0.05) %>%
+  group_by(Twins) %>%
+  filter(n() > 1) %>%
+  ungroup()
+
+for (pair in 1:8) {
+  df_filtered <- twin_pairs %>%
+    filter(Probe_ID %in% cg_values) %>%
+    filter(Pval < 0.05) %>%
+    filter(Twins == pair)  # Assuming Twins corresponds to the version
+
+  if (nrow(df_filtered) > 0) {
+    print(paste("There are values meeting the condition for Twin Pair", pair))
+  } else {
+    print(paste("No values meeting the condition for Twin Pair", pair))
+  }
+}
+
+```
+
+#trial
+```{r}
+
+ # Assigning diffexpressed 
+res_november$diffexpressed <- "NO"
+res_november$diffexpressed[res_november$Est_Twins > 0.6 & -log10(res_november$Pval_Twins) < 0.05] <- "UP"
+res_november$diffexpressed[res_november$Est_Twins < -0.6 & -log10(res_november$Pval_Twins) < 0.05] <- "DOWN" 
+
+
+# Filtering the dataframe and selecting the first n rows
+res_november_filtered <- res_november %>%
+  filter(n() > 1) %>%
+   filter(!is.na(Pval_Twins1)) %>%
+  # filter(Twins %in% c("1", "5"))%>%
+  filter(row_number() <= 10000)%>%
+  ungroup()%>%
+  glimpse()
+
+mycolors <- c("green", "red", "black")
+names(mycolors) <- c("DOWN", "UP", "NO")
+
+# Generating volcano plots for Twin Pair 1 (considering only the first 100 rows)
+volcano_plot <- ggplot(res_november_filtered, aes(x = Est, y = -log10(Pval), col = diffexpressed)) +
+  geom_point() +
+  geom_vline(xintercept = c(-0.6, 0.6), col = "red") +
+  geom_hline(yintercept = -log10(0.05), col = "red") +
+  coord_cartesian(ylim = c(0, 7)) +
+  ggtitle("Volcano Plot") +
+  labs(x = "Delta Beta", y = "-log10(P-value)") +
+  # facet_wrap(~Twins) +
+  theme_classic() +
+  scale_color_manual(values = mycolors) 
+  # geom_text(hjust = -0.1, vjust = -0.5, size = 3, show.legend = FALSE)
+
+print(volcano_plot)
+
+
+
+
+```
+
+
+####Volcano Plot###
+```{r}
+
+twin_pairs <- df_sig %>%
+  filter(rowSums(across(starts_with("Pval_Twins")) < 0.05) > 0) %>%
+  group_by(Twins) %>%
+  filter(n() > 1) %>%
+  ungroup()
+
+# Generating volcano plots for each twin pair
+for (pair in unique(twin_pairs$Twins)) 
+  if(pair == 1) {
+  df_filtered <- twin_pairs %>%
+    filter(Twins == pair) %>%
+    na.omit()  # Removing rows with missing values
+
+  volcano_plot <- ggplot(df_filtered, aes(x = get(paste0("Est_Twins", pair)), y = -log10(get(paste0("Pval_Twins", pair))))) +
+    geom_point() +
+    geom_vline(xintercept = c(-0.6, 0.6), col = "red") +  # Vertical lines at -0.6 and 0.6
+    geom_hline(yintercept = -log10(0.05), col = "red") +  # Horizontal line at -log10(0.05)
+    coord_cartesian(ylim = c(0, 7)) +
+    ggtitle(paste("Volcano Plot for Twin Pair1", pair)) +
+    labs(x = "log2fc", y = "-log10(P-value)") +
+    theme_classic()
+  
+  print(volcano_plot)
+}
+
+
+df_sig$diffexpressed <- "NO"
+df_sig$diffexpressed[df_sig[[paste0("Est_Twins", pair)]] > 0.6 & df_sig[[paste0("Pval_Twins", pair)]] < 0.05] <- "UP"
+df_sig$diffexpressed[df_sig[[paste0("Est_Twins", pair)]] < -0.6 & df_sig[[paste0("Pval_Twins", pair)]] < 0.05] <- "DOWN"
+
+# Re-plotting with color based on 'diffexpressed'
+volcano_plot <- ggplot(data = df_sig, aes(x = get(paste0("Est_Twins", pair)), y = -log10(get(paste0("Pval_Twins", pair))), col = diffexpressed)) +
+  geom_point() +
+  theme_minimal()
+
+# Adding lines as specified
+volcano_plot <- volcano_plot + geom_vline(xintercept = c(-0.6, 0.6), col = "red") +
+  geom_hline(yintercept = -log10(0.05), col = "red")
+
+print(volcano_plot)
+
+
+```  
+
+###create PDF for Volcano Plots###
+```{r}    
+pdf("all_volcano_plots.pdf")
+
+for (pair in unique(twin_pairs$Twins)) {
+  df_filtered <- twin_pairs %>%
+    filter(Twins == pair) %>%
+    na.omit()  # Removing rows with missing values
+  
+  print(paste("Processing Twin Pair:", pair))
+  print(head(df_filtered))  # Print the first few rows of the filtered data for debugging
+  
+  volcano_plot <- ggplot(df_filtered, aes(x = get(paste0("Est_Twins", pair)), y = -log10(get(paste0("Pval_Twins", pair))))) +
+    geom_point(aes(color = Sample_Group)) +
+    coord_cartesian(ylim = c(0, 7)) +
+    ggtitle(paste("Volcano Plot for Twin Pair", pair)) +
+    labs(x = "-log10(P-value)", y = "betas") +
+    theme_classic()
+
+  print(volcano_plot)
+}
+
+dev.off()
+
+```
+
+###Scatterplots for certain CPGs###
+```{r}
+
+
+  cg_values <- c('cg00000155', 'cg00000596', 'cg00000622', 'cg00000658', 'cg00000714') # Define the specific cg values of interest
+
+# Creating separate plots for each version of Pval_Twins
+scatter_plots <- lapply(1:8) function(version) {
+  df_filtered <- df_sig %>%
+    filter(Probe_ID %in% cg_values) %>%
+    filter(get(paste0("Pval_Twins", version)) < 0.05) %>%
+    filter(Twins == version)  # Assuming Twins corresponds to the version
+
+
+# Combine plots into one plot object
+multiplot_scatter <- do.call(gridExtra::grid.arrange, c(scatter_plots, ncol = 2))  # Adjust ncol as needed
+
+# Show the combined plot
+print(multiplot_scatter)
+print(scatter_plots[[1]])
+print(scatter_plots[[3]])
+print(scatter_plots[[5]])
+print(scatter_plots[[7]])
+```
+
+###create PDF for Scatterplots###
+```{r}
+# Create a PDF file for all plots (multiplot)
+pdf("all_scatter_plots.pdf")
+print(multiplot_scatter)
+dev.off()
+
+# Save individual plots to separate PDF files
+pdf("scatter_plot_1.pdf")
+print(scatter_plots[[1]])
+dev.off()
+
+pdf("scatter_plot_3.pdf")
+print(scatter_plots[[3]])
+dev.off()
+
+pdf("scatter_plot_5.pdf")
+print(scatter_plots[[5]])
+dev.off()
+
+pdf("scatter_plot_7.pdf")
+print(scatter_plots[[7]])
+}
+
+dev.off()
+```
+
+
+################# Manhattan plot ############################
+```{r}
+
+#Extract probe ID and p-value
+probe_ID <- res_november$Probe_ID
+pval <- res_november$Pval_Sample_Groupdivergent
+
+# Create a new data frame with probe ID and p-value
+pval_vector <- setNames(as.numeric(pval), probe_ID)
+
+head(pval_vector)
+
+#visualize the chromosomal distribution and significance level of CpG probes from an EWAS study
+#manhattan plot
+KYCG_plotManhattan(-log10(pval_vector), platform="EPIC",
+    col=c("darkgreen","red"), ylabel = bquote(-log[10](P~value)), label_min=30) +
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+  coord_cartesian(ylim = c(0, 7))
+```
+
+```{r}
+pdf("manhattan plot.pdf", width = 7, height = 4)
+KYCG_plotManhattan(-log10(pval_vector), platform="EPIC",
+col=c("darkgreen","red"), ylabel = bquote(-log[10](P~value)), label_min=30) +
+theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+coord_cartesian(ylim = c(0, 7))
+
+dev.off()
+```
+
+
